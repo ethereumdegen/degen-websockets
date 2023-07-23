@@ -6,3 +6,4 @@ pub mod socket_connection_registrar;
 pub mod socket_rooms;
 pub mod reliable_message_subsystem;
 pub mod socket_message_factory;
+pub mod util;

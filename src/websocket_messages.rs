@@ -9,14 +9,7 @@ use uuid;
 use thiserror::Error;
 
  
-
-//move this to shared?
-
-/*
-pub trait MessageUuid { 
-   fn get_message_uuid(&self) -> String;
-}
-*/
+ 
 
 #[derive(Serialize, Deserialize,Debug ,Clone)] 
 pub enum SecureMessageCredentials{
@@ -189,58 +182,6 @@ impl std::fmt::Display for SocketMessage {
     }
 }
 
-
-/*
-
-  //this is essentially the same as 'message' but we can use serde directives on it ( a hack , sadly )  
-#[derive(Serialize,Deserialize,Clone)]
-pub enum SocketMessage {
-    Text(String),
-    Binary(Vec<u8>),
-    Unknown,
-    Close 
-}
-
-impl SocketMessage {
-    pub fn from_message(msg: Message) -> Self {
-        match msg {
-            Message::Text(inner) => SocketMessage::Text(inner),
-            Message::Binary(inner) => SocketMessage::Binary(inner.into_iter().collect()),
-            Message::Close(_) => SocketMessage::Close,
-            _ => SocketMessage::Unknown,
-        }
-    }
-
-    pub fn to_message(&self) -> Message{
-        match self {
-            SocketMessage::Text(inner) => Message::Text(inner.to_string()),
-            SocketMessage::Binary(inner) => Message::Binary(inner.to_vec()),
-            _ => Message::Text("Unknown!".to_string())
-        }
-
-    }
-
-    //should throw an error instead  ! 
-    pub fn to_string(&self) -> String{
-        match self {
-            SocketMessage::Text(inner) => inner.to_string(),
-            SocketMessage::Binary(inner) => format!("{:?}",inner),
-            _ => "Unknown!".to_string()
-        }
-
-    }
-    
-    
-    pub fn from_wrapped_message<T: Serialize>(msg: T) -> Result<Self, serde_json::Error> {
-        let inner_content = serde_json::to_string(&msg)?;
-        Ok(SocketMessage::Text(inner_content))
-    }
-    
-    
-    
-}
-*/
-
  
 
 #[derive(Serialize, Deserialize,Debug ,Clone)] 
@@ -303,18 +244,4 @@ impl InboundMessage {
 
 } 
 
-
-/*
-
-#[derive(Serialize,Deserialize,Clone)]
-pub enum ConnStatusMessage {
-    ReliabilityAck { ack_message_uuid:String }
-    
-}
-
-impl MessageReliability for ConnStatusMessage {
-    
-    fn is_reliable(&self) -> MessageReliabilityType {
-        MessageReliabilityType::Unreliable
-    }
-}*/
+ 

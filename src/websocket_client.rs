@@ -1,32 +1,8 @@
-//! A simple example of hooking up stdin/stdout to a WebSocket stream.
-//!
-//! This example will connect to a server specified in the argument list and
-//! then forward all data read on stdin to the server, printing out all data
-//! received on stdout.
-//!
-//! Note that this is not currently optimized for performance, especially around
-//! buffer management. Rather it's intended to show an example of working with a
-//! client.
-//!
-//! You can use this example together with the `server` example.
-
-
+ 
 
 
 use futures::Future;
-/*
-
-Add options for auto reconnect ? 
-add crossbeam channels ? 
-
-
-
-
-May have to build some memory slots which keep track of awaiting threads which are waiting on msg responses/ACKs. 
-
-Bc - need a way to send a message that awaits a response ! 
-
-*/
+ 
 use serde::{Serialize};
 use serde_json;
 
@@ -37,7 +13,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tokio_tungstenite::{WebSocketStream,MaybeTlsStream};
 use tokio::net::TcpStream;
  
- //use crossbeam_channel::{ unbounded, Receiver, Sender};
+ 
  use tokio::sync::mpsc::{channel, Sender, Receiver};
 
 use std::thread;
@@ -155,13 +131,13 @@ pub struct ConnectionResources {
     
    
      
-    //outbound_messages_tx: Sender<OutboundMessage>,  
+   
     outbound_messages_rx: Option<Receiver<OutboundMessage>>,
     
     pending_reliable_messages: Arc<RwLock<HashMap<String,OutboundMessage>>>,
   
     
-    //ws_server_events_tx: Sender<WebsocketSystemEvent>,
+    
     ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, 
     
      outbound_messages_tx: Sender<OutboundMessage>, 
@@ -171,20 +147,7 @@ pub struct ConnectionResources {
  
 //should use crossbeam 
 pub struct Connection { 
-    /* pub write: Arc< Mutex<SocketWriteSink> >,
-     pub read: Option< SocketReadStream > , //can be used like a one-time mutex !  
-    
-     pub socket_connection_uuid: String,
-     
-    outbound_messages_tx: Sender<OutboundMessage>,  
-    outbound_messages_rx: Option<Receiver<OutboundMessage>>,
-    
-    pending_reliable_messages: Arc<RwLock<HashMap<String,OutboundMessage>>>,
-  
-    
-    ws_server_events_tx: Sender<WebsocketSystemEvent>,
-    ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, */
-    
+   
     resources: Arc<Mutex<ConnectionResources>>,
     
 }
@@ -334,127 +297,13 @@ impl Connection {
         
         println!("listen ending ");
     }
-    
-    
-    //kind sketchy -- deprecate ?
-    /*
-    pub fn listen_on_new_thread( &self, sender_channel: Sender<InboundMessage>){
-         //self.connection = Some(connection);
-          
-          let resources = Arc::clone(&self.resources);
-          
-          let listen_thread = thread::spawn(move || {
-            // Create a new Tokio runtime
-            let rt = Runtime::new().unwrap();
-    
-            // Use the runtime
-            rt.block_on(async {
-                Connection::start_listening(resources, sender_channel).await; 
-              //  self.connection = Some(connection);
-            }) 
-           });
-           
-           
-           listen_thread.join();
-    }*/
-    
-    
-    /*
-        Consumes the single read stream and starts a new loop which continuously forwards received packets into a crossbeam channel
-    */
- /*   pub fn start_listening_on_new_thread(
-        &mut self, 
-      
-        sender_channel: Sender<InboundMessage>, 
-        ) {
-            
-            
-            let read_option = self.read.take();//.expect("The read stream has already been consumed."); //why doesnt this need to be mut ?
-           
-            let read = match read_option {
-                Some(read)=> read,
-                None => {
-                    println!("WARN:cannot consume read stream again");
-                    return; 
-                }
-            };
-            
-             
-              
-             let socket_connection_uuid = self.socket_connection_uuid.clone();
-            
-             let pending_reliable_messages = Arc::clone(&self.pending_reliable_messages);
-           
-             let outbound_messages_tx = self.outbound_messages_tx.clone();
-             let mut outbound_messages_rx = self.outbound_messages_rx;
-            
-             let write = Arc::clone(&self.write);
-             
-             let ws_server_events_tx = self.ws_server_events_tx.clone();
-             let mut ws_server_events_rx = self.ws_server_events_rx ;
-             
-             
-        // Start a new OS thread
-        thread::spawn(move || {
-            // Create a new Tokio runtime
-            let rt = Runtime::new().unwrap();
-    
-            // Use the runtime
-            rt.block_on(async {
-                
-                  
-                  let forward_inbound_msg_future =  Connection::forward_inbound_messages(   
-                        read,
-                        sender_channel,
-                        socket_connection_uuid   ,
-                        outbound_messages_tx.clone()    ,
-                        ws_server_events_tx.clone()             
-                 );
-                  
-                  
-                  let send_outbound_msg_future = Self::start_forwarding_outbound_messages (
-                    write,
-                    outbound_messages_rx
-                    );
-                    
-                    let resend_reliable_messages = ReliableMessageSubsystem::resend_reliable_messages(
-                            Arc::clone(&pending_reliable_messages),  
-                            outbound_messages_tx
-                    );
-                        
-                    let handle_server_events = Self::handle_server_events(
-                    ws_server_events_rx ,
-                    Arc::clone(&pending_reliable_messages   )                     
-                    );
-                 
-                   
-                   
-                    
-                     tokio::select! {
-                    _ = forward_inbound_msg_future => eprintln!("forward_inbound_msg_handle finished"),
-                    _ = send_outbound_msg_future => eprintln!("send_outbound_msg_handle finished"),
-                    _ = resend_reliable_messages => eprintln!("resend_reliable_messages_handle finished"),
-                    _ = handle_server_events => eprintln!("handle_server_events_handle finished"),
-                   };
-                    
-                    
-                    println!("WS WARN: TOKIO SELECT DROPPED");
-                   
-              
-                 
-                 
-                 //if stops looping then somehow notify self that we are disconnected / not listening ? 
-                
-            });
-        });
-    }
-    */
+     
     
     
       pub async fn send_message(&mut self,  socket_message:  SocketMessage ) 
     -> Result<(), WebsocketClientError>
     {  
-       //   self.write.lock().await.send( socket_message.to_message()? ).await?;
+    
         
         
     let socket_connection_uuid = self.get_socket_connection_uuid().await ; 
@@ -491,8 +340,7 @@ impl Connection {
         
         let socket_connection_uuid = self.get_socket_connection_uuid().await;
        
-       //  let raw_string = serde_json::to_string(&message)?;
-       //  let socket_message = SocketMessage::create(destination,message)?;
+     
         
          if let MessageReliabilityType::Reliable(msg_uuid) = reliability_type {
                 
@@ -553,14 +401,7 @@ pub async fn clear_pending_reliable_message(
 }
     
     
-    /*
-    pub async fn send_message_immediately(&mut self,  socket_message:  SocketMessage ) 
-    -> Result<(), WebsocketClientError>
-    {  
-          self.write.lock().await.send( socket_message.to_message()? ).await?;
-        
-      Ok(())
-    }*/
+ 
    
     
     //this should loop forever and never end 
@@ -749,14 +590,7 @@ impl WebsocketClient {
         return Err(  WebsocketClientError::UnableToConnect );
     }
     
-    
-  /*   pub async fn listen(  &mut self , mut connection:   Connection,  sender_channel: Sender<InboundMessage>){
-        
-       connection.start_listening(sender_channel).await; 
-        
-        self.connection = Some(connection);
-    }
-    */
+  
     
        pub async fn listen_future(
         &mut self,
@@ -785,23 +619,7 @@ impl WebsocketClient {
                  
      }
     
-    //causes issues 
-    /*
-    pub fn listen_on_new_thread(
-        &mut self,
-         conn: Connection,
-         channel:  Sender<InboundMessage>
-         )  
-    -> Result<(),WebsocketClientError>{
-         
-         self.add_connection(  conn );
-      
-        self.connection.as_mut().unwrap().listen_on_new_thread( channel);
-     
-                
-           
-        Ok(())
-    }*/
+    
     
     pub fn add_connection( &mut self ,  connection:  Connection ){
          
@@ -809,16 +627,7 @@ impl WebsocketClient {
          
     }
     
-    /*
-    pub async fn forward_outbound_messages(&mut self, receiver_channel: Receiver<SocketMessage>){
-          match &mut self.connection {
-            Some(conn) => { conn.start_forwarding_outbound_messages(receiver_channel).await  }
-            None => {
-                println!("Could not start listening!  No connection :( ")
-            }
-        }
-    }*/
-    
+     
     pub async fn get_outbound_messages_tx(&self) -> Result<Sender<OutboundMessage>, WebsocketClientError> { 
         
         match &self.connection {
@@ -844,30 +653,7 @@ impl WebsocketClient {
         }
         
     }
-    
-    /*
-    pub async fn send_reliability_ack( &mut self, ack_message_uuid:String ){
-        match &mut self.connection {
-            Some(conn) => { 
-                    let send_result =  conn.send_socket_message(
-                        SocketMessage::create_reliability_ack( ack_message_uuid ) 
-                     //   ConnStatusMessage::ReliabilityAck {ack_message_uuid: ack_message_uuid.clone()},
-                      //  SocketMessageDestination::ResponseToMsg(ack_message_uuid.clone())
-                    ).await;
-                 }
-            None => {
-                println!("Could not reliability ack!  No connection :( ")
-            }
-        }
-    }*/
-    
-    /*
-    pub async send_reliable_message_ack<T: Serialize, MessageUuid, MessageReliability>(&self, message:T)
-    {
-        
-        
-        
-    }*/
+  
  
 
     
