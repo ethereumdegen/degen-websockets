@@ -9,10 +9,26 @@ pub mod util;
 
 use crate::websocket_server::WebsocketServer;
 use util::websocket_channel::TokioMpscChannel;
+use websocket_messages::{MessageReliability, MessageReliabilityType};
 
-use crate::websocket_messages::InboundMessage;
+use crate::websocket_messages::{InboundMessage, OutboundMessage, OutboundMessageDestination, SocketMessage};
 use crate::websocket_client::WebsocketClient;
 use tokio::time::Duration;
+
+use serde::{Serialize,Deserialize};
+
+#[derive(Serialize,Deserialize)]
+struct MyCustomMessage {
+    
+    color: String
+}
+
+impl MessageReliability for MyCustomMessage {
+    
+         fn get_reliability_type(&self, msg_uuid:String) -> MessageReliabilityType{
+             return MessageReliabilityType::Reliable( msg_uuid )
+         }
+}
 
 
 #[tokio::main]
@@ -79,10 +95,31 @@ async fn main() {
             let  socket_conn_send_tx =  socket_connection.get_outbound_messages_tx().await;
         
                 println!("client listening");
-            let client_listen_thread= socket_connection. listen( 
-                 
-               socket_conn_recv_tx_for_thread.clone()
-           ).await;  
+           
+          
+               
+           
+           //never goes past this ?
+           
+
+           let destination = websocket_messages::SocketMessageDestination::All;
+            
+           let socket_message_result = SocketMessage ::create(  destination, MyCustomMessage{color:"blue".to_string()}); 
+           
+           if let Ok(socket_message) = socket_message_result {
+                socket_conn_send_tx.send(  socket_message ).await ;
+           }else{
+               println!("could not create message");
+           }
+
+          
+            
+             let client_listen_thread= socket_connection. listen( 
+                        
+                    socket_conn_recv_tx_for_thread.clone()
+                ).await;  
+            
+            
         }
 
    
