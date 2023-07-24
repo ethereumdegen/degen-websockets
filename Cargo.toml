@@ -1,5 +1,8 @@
 [package]
 name = "yaws"
+description ="Yet Another Websocket Server"
+repository="https://github.com/ethereumdegen/yaws-rust"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
