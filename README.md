@@ -1,4 +1,4 @@
-## Yet Another Websocket Server 
+## Degen Websockets
 
 A websocket server and client framework supporting: 
 
