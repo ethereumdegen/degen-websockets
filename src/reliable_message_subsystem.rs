@@ -52,9 +52,9 @@ impl ReliableMessageSubsystem {
      
 
 //every 0.5 seconds, trysend all the pending reliable messages
-pub async fn resend_reliable_messages(
-    pending_reliable_messages: Arc<RwLock<HashMap<String, OutboundMessage>>>,
-    global_send_tx: Sender<OutboundMessage> 
+pub async fn resend_reliable_messages<T:Clone>(
+    pending_reliable_messages: Arc<RwLock<HashMap<String, T>>>,
+    global_send_tx: Sender<T> 
 ) -> std::io::Result<()>  {
     
     let mut interval = interval(Duration::from_secs_f32(0.5));
@@ -72,7 +72,7 @@ pub async fn resend_reliable_messages(
         
     
      }
-    
+    // Ok(())
 }
     
     

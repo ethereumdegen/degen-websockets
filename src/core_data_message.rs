@@ -32,7 +32,14 @@ pub enum CoreDataMessageContents {
 
 
 impl CoreDataMessageContents {
-     
+    
+    //deprecated ? 
+  /*  pub fn from_stringified( raw_msg_string:String ) -> Result<Self, serde_json::Error> {
+
+        let message:Self = serde_json::from_str( &raw_msg_string )?;
+
+        Ok(message)
+    }*/
 
    pub fn from_inner_content( inner_content_option: Option<serde_json::Value >) -> Result<Option<Self>, serde_json::Error> {
 
@@ -46,7 +53,7 @@ impl CoreDataMessageContents {
         } 
        
 
-     
+       // Ok(message)
     }
 
 

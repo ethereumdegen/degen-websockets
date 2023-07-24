@@ -1,8 +1,32 @@
- 
+//! A simple example of hooking up stdin/stdout to a WebSocket stream.
+//!
+//! This example will connect to a server specified in the argument list and
+//! then forward all data read on stdin to the server, printing out all data
+//! received on stdout.
+//!
+//! Note that this is not currently optimized for performance, especially around
+//! buffer management. Rather it's intended to show an example of working with a
+//! client.
+//!
+//! You can use this example together with the `server` example.
+
+
 
 
 use futures::Future;
- 
+/*
+
+Add options for auto reconnect ? 
+add crossbeam channels ? 
+
+
+
+
+May have to build some memory slots which keep track of awaiting threads which are waiting on msg responses/ACKs. 
+
+Bc - need a way to send a message that awaits a response ! 
+
+*/
 use serde::{Serialize};
 use serde_json;
 
@@ -13,7 +37,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tokio_tungstenite::{WebSocketStream,MaybeTlsStream};
 use tokio::net::TcpStream;
  
- 
+ //use crossbeam_channel::{ unbounded, Receiver, Sender};
  use tokio::sync::mpsc::{channel, Sender, Receiver};
 
 use std::thread;
@@ -131,23 +155,36 @@ pub struct ConnectionResources {
     
    
      
-   
-    outbound_messages_rx: Option<Receiver<OutboundMessage>>,
+    //outbound_messages_tx: Sender<OutboundMessage>,  
+    outbound_messages_rx: Option<Receiver<SocketMessage>>,
     
-    pending_reliable_messages: Arc<RwLock<HashMap<String,OutboundMessage>>>,
+    pending_reliable_messages: Arc<RwLock<HashMap<String,SocketMessage>>>,
   
     
-    
+    //ws_server_events_tx: Sender<WebsocketSystemEvent>,
     ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, 
     
-     outbound_messages_tx: Sender<OutboundMessage>, 
+     outbound_messages_tx: Sender<SocketMessage>, 
       ws_server_events_tx: Sender<WebsocketSystemEvent>, 
         pub socket_connection_uuid: String,
 }
  
 //should use crossbeam 
 pub struct Connection { 
-   
+    /* pub write: Arc< Mutex<SocketWriteSink> >,
+     pub read: Option< SocketReadStream > , //can be used like a one-time mutex !  
+    
+     pub socket_connection_uuid: String,
+     
+    outbound_messages_tx: Sender<OutboundMessage>,  
+    outbound_messages_rx: Option<Receiver<OutboundMessage>>,
+    
+    pending_reliable_messages: Arc<RwLock<HashMap<String,OutboundMessage>>>,
+  
+    
+    ws_server_events_tx: Sender<WebsocketSystemEvent>,
+    ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, */
+    
     resources: Arc<Mutex<ConnectionResources>>,
     
 }
@@ -160,49 +197,7 @@ impl Connection {
         
            
           
-          
-          //this should loop forever and never end 
-            //this also should not take up 100% of the thread use 
-          async fn start_forwarding_outbound_messages(
-           // &mut self,
-            write: Arc<Mutex<SocketWriteSink>>,
-            mut receiver_channel: Receiver<OutboundMessage>
-        ) -> std::io::Result<()>   //REQUIRED for join ! futures 
-        {
-            
-            println!("ws client start_forwarding_outbound_messages");
-            loop {
-                 
-                 
-            while let Some(outbound_message) =  receiver_channel.recv().await {   //let up so other threads in the join  can run 
-              
-                   // let inner_message = outbound_message.message;
-                  //  self.send_message( socket_message ).await;
-                    let socket_message = outbound_message.message;
-                    
-                          println!("ws client is sending out msg: {} ", socket_message);
-                          
-                    let message_result = socket_message.to_message();
-                    
-                     if let Ok(message) = message_result {
-                        let send_msg =  write.lock().await.send( message ).await ;    
-                        
-                        if let Err(e) = send_msg  {
-                            println!("ws client: Error sending message.. {}", e);
-                        }    
-                     }
-                     
-                  //  Ok(())
-                
-            }
-            
-         
-            
-            }
-        
-          //  Ok(())
-        }
-    
+       
     
       pub async fn start_listening(
          // &self,
@@ -234,7 +229,7 @@ impl Connection {
               let forward_inbound_msg_future =  Connection::forward_inbound_messages(   
                         read,
                         sender_channel,
-                        socket_connection_uuid ,
+                        socket_connection_uuid.clone(),
                         outbound_messages_tx.clone(),  // for sending reliability ack 
                         ws_server_events_tx.clone()
                  ) ;
@@ -242,10 +237,14 @@ impl Connection {
                  
                 let send_outbound_msg_future = Self::start_forwarding_outbound_messages (
                     write,
-                    outbound_messages_rx
+                    outbound_messages_rx,
+                    
+                    Arc::clone(&pending_reliable_messages),
+                    socket_connection_uuid.clone() 
+                    
                 );
                  
-                let resend_reliable_messages = ReliableMessageSubsystem::resend_reliable_messages(
+                let resend_reliable_messages = ReliableMessageSubsystem::resend_reliable_messages (
                         Arc::clone(&pending_reliable_messages),  
                         outbound_messages_tx.clone()
                     );
@@ -278,8 +277,83 @@ impl Connection {
     }
     
      
+     
+        
+          //this should loop forever and never end 
+            //this also should not take up 100% of the thread use 
+          async fn start_forwarding_outbound_messages(
+           // &mut self,
+            write: Arc<Mutex<SocketWriteSink>>,
+            mut receiver_channel: Receiver<SocketMessage>,
+            
+            pending_reliable_messages: Arc<RwLock<HashMap<String, SocketMessage>>>,
+            socket_connection_uuid:String, 
+        ) -> std::io::Result<()>   //REQUIRED for join ! futures 
+        {
+            
+            println!("ws client start_forwarding_outbound_messages");
+            loop {
+                 
+                 
+            while let Some(socket_message) =  receiver_channel.recv().await {   //let up so other threads in the join  can run 
+              
+                   // let inner_message = outbound_message.message;
+                  //  self.send_message( socket_message ).await;
+                   // let socket_message = outbound_message.message;
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                       let reliability_type = socket_message.clone().reliability_type;
+         
+                        
+                        if let MessageReliabilityType::Reliable(msg_uuid) = reliability_type {
+                                
+                              /*  let outbound_message = OutboundMessage {
+                                    destination: OutboundMessageDestination::SocketConn(  socket_connection_uuid.clone() ),
+                                    message: socket_message.clone( )
+                                };*/
+                            
+                            //could cause deadlock !? 
+                            pending_reliable_messages.write().await.insert(msg_uuid,   socket_message.clone( ) );
+                        }
+                                      
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                          println!("ws client is sending out msg: {} ", socket_message);
+                          
+                    let message_result = socket_message.to_message();
+                    
+                     if let Ok(message) = message_result {
+                        let send_msg =  write.lock().await.send( message ).await ;    
+                        
+                        if let Err(e) = send_msg  {
+                            println!("ws client: Error sending message.. {}", e);
+                        }    
+                     }
+                     
+                  //  Ok(())
+                
+            }
+            
+         
+            
+            }
+        
+          //  Ok(())
+        }
+    
+    
     //should be a SocketMessage sender right... oh well anyways 
-    pub async fn get_outbound_messages_tx(&self) -> Sender<OutboundMessage> {
+    pub async fn get_outbound_messages_tx(&self) -> Sender<SocketMessage> {
         
         self.resources.lock().await.outbound_messages_tx.clone()
     }
@@ -297,30 +371,9 @@ impl Connection {
         
         println!("listen ending ");
     }
+    
      
     
-    
-      pub async fn send_message(&mut self,  socket_message:  SocketMessage ) 
-    -> Result<(), WebsocketClientError>
-    {  
-    
-        
-        
-    let socket_connection_uuid = self.get_socket_connection_uuid().await ; 
-    let outbound_messages_tx = self.get_outbound_messages_tx().await;
-          
-          
-     let send_result =  outbound_messages_tx.try_send( 
-         
-          
-          OutboundMessage {
-              destination: OutboundMessageDestination::SocketConn( socket_connection_uuid ) ,//why ??
-              message: socket_message
-          } );
-        
-       send_result.map_err( |_| WebsocketClientError::SendMessageError  )
-    }
-     
     
     
     pub async fn get_socket_connection_uuid(&self) -> String {
@@ -329,41 +382,12 @@ impl Connection {
        return  self.resources.lock().await.socket_connection_uuid.clone( )
         
         
-    }
-    
-        
-    pub async fn send_socket_message (&mut self,  socket_message: SocketMessage )
-     -> Result<(), WebsocketClientError> {
-        
-        let reliability_type = socket_message.clone().reliability_type;
-        
-        
-        let socket_connection_uuid = self.get_socket_connection_uuid().await;
-       
-     
-        
-         if let MessageReliabilityType::Reliable(msg_uuid) = reliability_type {
-                
-                let outbound_message = OutboundMessage {
-                    destination: OutboundMessageDestination::SocketConn(  socket_connection_uuid ),
-                    message: socket_message.clone( )
-                };
-             
-             //could cause deadlock !? 
-             self.resources.lock().await.pending_reliable_messages.write().await.insert(msg_uuid, outbound_message);
-         }
-         
-        self.send_message(socket_message).await?;
-        
-         
-        Ok(())
-    }
-    
+    } 
     
 
 async fn handle_server_events( 
     mut ws_event_rx: Receiver<WebsocketSystemEvent>,
-    pending_reliable_messages: Arc<RwLock<HashMap<String, OutboundMessage>>>,
+    pending_reliable_messages: Arc<RwLock<HashMap<String, SocketMessage>>>,
 ) -> std::io::Result<()>  {
     
     loop {
@@ -392,7 +416,7 @@ async fn handle_server_events(
 
 //when we receive an ACK with this message uuid, we clear 
 pub async fn clear_pending_reliable_message( 
-    pending_reliable_messages: Arc<RwLock<HashMap<String, OutboundMessage>>>,
+    pending_reliable_messages: Arc<RwLock<HashMap<String, SocketMessage>>>,
     message_uuid: String,
     
 ) {
@@ -401,7 +425,14 @@ pub async fn clear_pending_reliable_message(
 }
     
     
- 
+    /*
+    pub async fn send_message_immediately(&mut self,  socket_message:  SocketMessage ) 
+    -> Result<(), WebsocketClientError>
+    {  
+          self.write.lock().await.send( socket_message.to_message()? ).await?;
+        
+      Ok(())
+    }*/
    
     
     //this should loop forever and never end 
@@ -410,7 +441,7 @@ pub async fn clear_pending_reliable_message(
         mut read: futures_util::stream::SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>, 
         sender_channel: Sender<InboundMessage>,
         socket_connection_uuid:String  ,
-        outbound_messages_tx: Sender<OutboundMessage>,
+        outbound_messages_tx: Sender<SocketMessage>,
         ws_server_events_tx: Sender<WebsocketSystemEvent>
             ){
                    
@@ -451,10 +482,12 @@ pub async fn clear_pending_reliable_message(
                                     let ack_message =  SocketMessage::create_reliability_ack( msg_uuid.clone()) ;
                                     println!("client creating reliability ack for {}", msg_uuid.clone());
                                     let send_ack_result = outbound_messages_tx.try_send (  //should be try send as to not block 
-                                        OutboundMessage {
+                                       /* OutboundMessage {
                                             destination: OutboundMessageDestination::SocketConn( socket_connection_uuid.clone( )),
                                             message:ack_message
-                                        }
+                                        }*/
+                                        ack_message
+                                        
                                     );
                                     
                                     if let Err(send_ack_err) = send_ack_result {
@@ -492,7 +525,7 @@ pub async fn clear_pending_reliable_message(
   
     
      
-  
+  /*
     pub async fn forward_outbound_messages(
          mut write: futures_util::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
          mut receiver_channel: Receiver<SocketMessage>
@@ -510,7 +543,10 @@ pub async fn clear_pending_reliable_message(
                     }
                }
         
-          }
+          }*/
+          
+          
+          
 }
 
 
@@ -548,7 +584,7 @@ impl WebsocketClient {
                     
                     let socket_connection_uuid =  uuid::Uuid::new_v4().to_string();
                     
-                    let (outbound_messages_tx, outbound_messages_rx) : (Sender<OutboundMessage>, Receiver<OutboundMessage>)= channel(500);
+                    let (outbound_messages_tx, outbound_messages_rx) : (Sender<SocketMessage>, Receiver<SocketMessage>)= channel(500);
                     let (ws_server_events_tx, ws_server_events_rx) : (Sender<WebsocketSystemEvent>, Receiver<WebsocketSystemEvent>)= channel(500);
                     
                     let resources = ConnectionResources {
@@ -590,7 +626,14 @@ impl WebsocketClient {
         return Err(  WebsocketClientError::UnableToConnect );
     }
     
-  
+    
+  /*   pub async fn listen(  &mut self , mut connection:   Connection,  sender_channel: Sender<InboundMessage>){
+        
+       connection.start_listening(sender_channel).await; 
+        
+        self.connection = Some(connection);
+    }
+    */
     
        pub async fn listen_future(
         &mut self,
@@ -619,7 +662,23 @@ impl WebsocketClient {
                  
      }
     
-    
+    //causes issues 
+    /*
+    pub fn listen_on_new_thread(
+        &mut self,
+         conn: Connection,
+         channel:  Sender<InboundMessage>
+         )  
+    -> Result<(),WebsocketClientError>{
+         
+         self.add_connection(  conn );
+      
+        self.connection.as_mut().unwrap().listen_on_new_thread( channel);
+     
+                
+           
+        Ok(())
+    }*/
     
     pub fn add_connection( &mut self ,  connection:  Connection ){
          
@@ -627,8 +686,17 @@ impl WebsocketClient {
          
     }
     
-     
-    pub async fn get_outbound_messages_tx(&self) -> Result<Sender<OutboundMessage>, WebsocketClientError> { 
+    /*
+    pub async fn forward_outbound_messages(&mut self, receiver_channel: Receiver<SocketMessage>){
+          match &mut self.connection {
+            Some(conn) => { conn.start_forwarding_outbound_messages(receiver_channel).await  }
+            None => {
+                println!("Could not start listening!  No connection :( ")
+            }
+        }
+    }*/
+    
+    pub async fn get_outbound_messages_tx(&self) -> Result<Sender<SocketMessage>, WebsocketClientError> { 
         
         match &self.connection {
             Some(conn) => Ok ( conn.get_outbound_messages_tx().await ) ,
@@ -638,7 +706,7 @@ impl WebsocketClient {
     }
     
         
-    pub async fn send_socket_message (&mut self, 
+    /*pub async fn send_socket_message (&mut self, 
          message: SocketMessage,
        //  destination: SocketMessageDestination
          )
@@ -652,8 +720,31 @@ impl WebsocketClient {
             }
         }
         
-    }
-  
+    }*/
+    
+    /*
+    pub async fn send_reliability_ack( &mut self, ack_message_uuid:String ){
+        match &mut self.connection {
+            Some(conn) => { 
+                    let send_result =  conn.send_socket_message(
+                        SocketMessage::create_reliability_ack( ack_message_uuid ) 
+                     //   ConnStatusMessage::ReliabilityAck {ack_message_uuid: ack_message_uuid.clone()},
+                      //  SocketMessageDestination::ResponseToMsg(ack_message_uuid.clone())
+                    ).await;
+                 }
+            None => {
+                println!("Could not reliability ack!  No connection :( ")
+            }
+        }
+    }*/
+    
+    /*
+    pub async send_reliable_message_ack<T: Serialize, MessageUuid, MessageReliability>(&self, message:T)
+    {
+        
+        
+        
+    }*/
  
 
     
