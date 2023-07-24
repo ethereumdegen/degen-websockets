@@ -20,6 +20,7 @@ async fn main() {
    
     let rt = tokio::runtime::Runtime::new().unwrap();
 
+    // no ws:// here 
     let server_url:String = "localhost:8100".to_string();
 
     let mut websocket_server =  WebsocketServer::new() ;
@@ -51,7 +52,8 @@ async fn main() {
     }); 
 
 
-    let remote_server_url:String = "ws://localhost:8100".to_string();
+    //need ws here 
+    let remote_server_url:String = "localhost:8100".to_string();
 
     
     rt.spawn(async move {

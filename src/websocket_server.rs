@@ -166,15 +166,7 @@ impl ClientConnection {
 
 
 
-/*
-
-
-Need to: 
-1. implement a loop that every 0.5 seconds will send out the outbound messages in pending_reliable_messages
-
-2. implement a watcher on incoming msg to see if an ACK coems in which will 'delete' our pending reliable msg record 
-
-*/
+ 
 
 pub struct WebsocketServer{
 
@@ -183,7 +175,7 @@ pub struct WebsocketServer{
     rooms: RoomsMap, // room name -> Set[client_uuid]
 
 
-    //let (sender, receiver): (Sender<T>, Receiver<T>) = unbounded();
+    
     global_recv_tx: Sender<InboundMessage>, //passed to each client connection 
     global_recv_rx: Option<Receiver<InboundMessage>>,
 
@@ -226,109 +218,7 @@ impl WebsocketServer {
         }
     }
     
-  /*  pub fn start_in_thread(&mut self, url: Option<String>) ->
-     std::io::Result< std::thread::JoinHandle<()> > {
-       
-
-        let clients = Arc::clone(&self.clients); 
-        let rooms = Arc::clone(&self.rooms);
-        let pending_reliable_messages = Arc::clone(&self.pending_reliable_messages);
-        
-        let global_recv_channel = self.global_recv_tx.clone();
-
-        let global_send_rx = self.global_send_rx.take().unwrap();
-        let global_send_tx = self.global_send_tx.clone();
-        
-        let ws_server_events_tx = self.ws_server_events_tx.clone();
-        let ws_server_events_rx = self.ws_server_events_rx.take().unwrap();
-        
-        let accept_connections_thread = thread::spawn(move || {  //use a non-tokio thread here 
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            runtime.block_on(async {
-
-                    let addr: String = url.unwrap_or_else(|| "127.0.0.1:8080".to_string());
-                    // Create the event loop and TCP listener we'll accept connections on.
-                    let try_socket = TcpListener::bind(&addr).await;
-                    let listener = try_socket.expect("Failed to bind");
-                    println!("Listening on: {}", addr);
-                        
-                    
-                         
-                     let accept_connections = Self::try_accept_new_connections( 
-                         Arc::clone(&clients),
-                          listener,
-                          global_recv_channel , 
-                          global_send_tx.clone(), //for sending ACKs
-                          ws_server_events_tx.clone()
-                          
-                            );
-                  
-                      let send_outbound_messages = Self::try_send_outbound_messages(  
-                        Arc::clone(&clients), 
-                        Arc::clone(&rooms),
-                        global_send_rx 
-                    );
-                    
-                    let resend_reliable_messages = ReliableMessageSubsystem::resend_reliable_messages(
-                        Arc::clone(&pending_reliable_messages),  
-                        global_send_tx
-                    );
-                    
-                    let handle_server_events = Self::handle_server_events(
-                        ws_server_events_rx.clone(),
-                        Arc::clone(&pending_reliable_messages   )                     
-                    );
-
-             
-                            
-                 let accept_conn_handle = tokio::spawn(async {
-                    accept_connections.await;
-                    eprintln!("WARN: ws_s accept_connections ENDED");
-                });
-                
-                let send_outbound_messages_handle = tokio::spawn(async {
-                    send_outbound_messages.await;
-                    eprintln!("WARN: ws_s send_outbound_messages ENDED");
-                });
-                
-                let resend_reliable_messages_handle = tokio::spawn(async {
-                    resend_reliable_messages.await;
-                    eprintln!("WARN: ws_s resend_reliable_messages ENDED");
-                });
-                
-                let handle_server_events_handle = tokio::spawn(async {
-                    handle_server_events.await;
-                    eprintln!("WARN: ws_s handle_server_events ENDED");
-                });
-                
-                tokio::select! {
-                    _ = accept_conn_handle => eprintln!("accept_conn_handle finished"),
-                    _ = send_outbound_messages_handle => eprintln!("send_outbound_messages_handle finished"),
-                    _ = resend_reliable_messages_handle => eprintln!("resend_reliable_messages_handle finished"),
-                    _ = handle_server_events_handle => eprintln!("handle_server_events_handle finished"),
-                }
- 
-                     
-                     
-                     /*   !todo();  
-                     tokio::select!{
-                         _ => accept_conn_handle
-                    
-                         
-                     };*/
-                     
-                     println!("WARN: SOCKET SERVER SHUTDOWN");
-                 
-            });
-        });
-
-        println!("Started websocket server");
-
- 
-
-        Ok( accept_connections_thread )
-    }*/
-
+  
     pub async fn start(&mut self, url:Option<String>) -> std::io::Result<()> {
             
         let clients = Arc::clone(&self.clients); 
@@ -416,12 +306,7 @@ impl WebsocketServer {
      -> Result<(), WebsocketServerError> {
          
         let reliability_type = socket_message.clone().reliability_type;
-      
-       // let raw_string = serde_json::to_string(&message)?;
-       // let socket_message = SocketMessage::Text(raw_string);
-        
-       //  let socket_message = SocketMessage::create(destination, message)?
-         
+       
          
          let outbound_message = OutboundMessage { 
              destination, 
@@ -439,50 +324,13 @@ impl WebsocketServer {
         Ok(())
     }
     
-    /* pub async fn send_reliability_ack( 
-         &mut self, 
-         ack_message_uuid:String,
-         socket_conn_uuid:String 
-         )  -> Result<(), WebsocketServerError>{
-             
-            let outbound_message = OutboundMessage { 
-             destination: OutboundMessageDestination::SocketConn( socket_conn_uuid ), 
-             message:  SocketMessage::create_reliability_ack(  ack_message_uuid  )
-             };
-        
-        let send_result =  self.send_outbound_message(
-           outbound_message
-        );
-                
-      Ok(())
-    }*/
-    
- 
-            /*
-    pub fn send_wrapped_message<T: Serialize>(&self,  message: T, destination: SocketMessageDestination)
-     -> Result<(), WebsocketServerError> {
-        let raw_string = serde_json::to_string(&message)?;
-        let socket_message = SocketMessage::Text(raw_string);
-        
-         let outbound_message = OutboundMessage { 
-             destination, 
-             message:socket_message
-             };
-         
-        self.send_outbound_message(outbound_message)?;
-         
-        Ok(())
-    }*/
+     
     
 
     pub fn send_outbound_message(&self, msg:OutboundMessage) 
      -> Result<(), WebsocketServerError> {
  
-       /* Self::broadcast( 
-            Arc::clone(&self.clients), 
-            Arc::clone(&self.rooms), 
-            msg 
-            ).await*/
+       
             
             
         self.get_send_channel().try_send( msg )  .map_err(|_| WebsocketServerError::SendMessageError) //.map_err(|_|   Err(WebsocketServerError::SendMessageError) )
@@ -547,24 +395,7 @@ async fn get_cloned_clients_in_room(clients: &ClientsMap, rooms: &RoomsMap, room
 
 
 
-
-
-// type RoomsMap = Arc<RwLock<HashMap<String, HashSet<String>>>>;
  
-  /*  pub fn add_client_to_room(&mut self, client_connection_uuid:String, room_name : String ) {
-
-        let rooms = Arc::clone(&self.rooms);
-
-        rooms.write.unwrap().insert(); 
-
-
-    }
-
-    pub fn remove_client_from_room(){
-
-    }
-*/
-
 
 //need to put a loop AROUND the while let 
 async fn handle_server_events( 
@@ -609,31 +440,7 @@ pub async fn clear_pending_reliable_message(
     let mut messages = pending_reliable_messages.write().await ;
     messages.remove(&message_uuid) ;
 }
-
-
-//every 0.5 seconds, trysend all the pending reliable messages
-/*pub async fn resend_reliable_messages(
-    pending_reliable_messages: Arc<RwLock<HashMap<String, OutboundMessage>>>,
-    global_send_tx: Sender<OutboundMessage> 
-) -> std::io::Result<()>  {
-    
-    let mut interval = interval(Duration::from_secs_f32(0.5));
-              
-       
-     loop {
-         interval.tick().await;
-         
-        let messages = pending_reliable_messages.read().await ;
-        for (_, message) in messages.iter() {
-            if let Err(e) = global_send_tx.try_send(message.clone()) {
-                eprintln!("Failed to resend reliable message: {}", e);
-            }
-        }
-        
-    
-     }
-    // Ok(())
-}*/
+ 
 
 
 pub async fn try_send_outbound_messages( 
@@ -659,10 +466,7 @@ pub async fn try_send_outbound_messages(
 
 
             }
-          /*  Err(TryRecvError::Empty) => {
-                // No messages available right now, sleep for a short duration
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }*/
+          
             None   =>  {} ,
         }
     }
@@ -717,8 +521,7 @@ pub async fn broadcast(
        OutboundMessageDestination::All =>  Self::get_cloned_clients(&clients_map).await,
        OutboundMessageDestination::Room(room_name) => Self::get_cloned_clients_in_room(&clients_map,&rooms_map,room_name).await,
        OutboundMessageDestination::SocketConn(socket_connection_uuid) => Self::get_cloned_client_specific(&clients_map,socket_connection_uuid).await,
-      // MessageDestination::ResponseToMsg(msg_uuid) => {},
-      // MessageDestination::Server => {}
+     
     };
 
  
@@ -787,9 +590,7 @@ pub async fn try_accept_new_connections(
             ) 
             );
             
-            //new_client_thread.await;
-            
-            //HOW TO JOIN ?
+          
     }
     Ok(())
 }

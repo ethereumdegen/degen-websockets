@@ -155,13 +155,13 @@ pub struct ConnectionResources {
     
    
      
-    //outbound_messages_tx: Sender<OutboundMessage>,  
+ 
     outbound_messages_rx: Option<Receiver<SocketMessage>>,
     
     pending_reliable_messages: Arc<RwLock<HashMap<String,SocketMessage>>>,
   
     
-    //ws_server_events_tx: Sender<WebsocketSystemEvent>,
+     
     ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, 
     
      outbound_messages_tx: Sender<SocketMessage>, 
@@ -169,22 +169,9 @@ pub struct ConnectionResources {
         pub socket_connection_uuid: String,
 }
  
-//should use crossbeam 
+ 
 pub struct Connection { 
-    /* pub write: Arc< Mutex<SocketWriteSink> >,
-     pub read: Option< SocketReadStream > , //can be used like a one-time mutex !  
-    
-     pub socket_connection_uuid: String,
-     
-    outbound_messages_tx: Sender<OutboundMessage>,  
-    outbound_messages_rx: Option<Receiver<OutboundMessage>>,
-    
-    pending_reliable_messages: Arc<RwLock<HashMap<String,OutboundMessage>>>,
-  
-    
-    ws_server_events_tx: Sender<WebsocketSystemEvent>,
-    ws_server_events_rx: Option<Receiver<WebsocketSystemEvent>>, */
-    
+ 
     resources: Arc<Mutex<ConnectionResources>>,
     
 }
@@ -200,7 +187,7 @@ impl Connection {
        
     
       pub async fn start_listening(
-         // &self,
+         
         resources: Arc<Mutex<ConnectionResources>>,
         sender_channel: Sender<InboundMessage>, 
         ) {
@@ -221,8 +208,6 @@ impl Connection {
              
              let write = Arc::clone(&resources.write);
          
-               
-               //should give up lock on connection here 
                
                
                //this is nottt working 
@@ -312,11 +297,7 @@ impl Connection {
                         
                         if let MessageReliabilityType::Reliable(msg_uuid) = reliability_type {
                                 
-                              /*  let outbound_message = OutboundMessage {
-                                    destination: OutboundMessageDestination::SocketConn(  socket_connection_uuid.clone() ),
-                                    message: socket_message.clone( )
-                                };*/
-                            
+ 
                             //could cause deadlock !? 
                             pending_reliable_messages.write().await.insert(msg_uuid,   socket_message.clone( ) );
                         }
@@ -360,13 +341,13 @@ impl Connection {
     
     
      pub async fn listen( &self, sender_channel: Sender<InboundMessage>){
-         //self.connection = Some(connection);
+        
           
           let resources = Arc::clone(&self.resources);
           
         
         let start_listening_future=   Connection::start_listening(resources, sender_channel); 
-              //  self.connection = Some(connection);
+           
         tokio::join!( start_listening_future ) ;
         
         println!("listen ending ");
@@ -482,10 +463,7 @@ pub async fn clear_pending_reliable_message(
                                     let ack_message =  SocketMessage::create_reliability_ack( msg_uuid.clone()) ;
                                     println!("client creating reliability ack for {}", msg_uuid.clone());
                                     let send_ack_result = outbound_messages_tx.try_send (  //should be try send as to not block 
-                                       /* OutboundMessage {
-                                            destination: OutboundMessageDestination::SocketConn( socket_connection_uuid.clone( )),
-                                            message:ack_message
-                                        }*/
+                                       
                                         ack_message
                                         
                                     );
@@ -565,15 +543,22 @@ impl WebsocketClient {
              connection: None,
             }
     }
-    
-  //  pub fn get_
-
+     
   
 
     pub async fn connect(  connect_addr: String ) 
     -> Result<Connection, WebsocketClientError > {
+
+
+        let mut final_connect_addr = connect_addr;
+
+        if !final_connect_addr.starts_with("ws://") {
+            // append it to the beginning
+            final_connect_addr = format!("ws://{}", final_connect_addr);
+        }
+
        
-        let url = url::Url::parse(&connect_addr).unwrap(); 
+        let url = url::Url::parse(&final_connect_addr).unwrap(); 
        
 
         for  i in 0..9 {
@@ -591,9 +576,7 @@ impl WebsocketClient {
                         
                         write:Arc::new(Mutex::new(write)),
                         read : Some(read),
-                     //   socket_connection_uuid,
-                        
-                        ///wrap these in a system? 
+                      
                         pending_reliable_messages: Arc::new(RwLock::new(HashMap::new())),
                         outbound_messages_rx: Some(outbound_messages_rx),
                         outbound_messages_tx,
