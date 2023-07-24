@@ -9,4 +9,25 @@ A websocket server and client framework supporting:
 
 See main.rs 
 
+ ### Custom messages 
  
+  
+  You can define your own inner messages to send through the socket server.  They just need to implement Serialize/Deserialize and MessageReliability as follows: 
+
+
+```
+#[derive(Serialize,Deserialize)]
+struct MyCustomMessage {
+    
+    color: String
+}
+
+impl MessageReliability for MyCustomMessage {
+    
+         fn get_reliability_type(&self, msg_uuid:String) -> MessageReliabilityType{
+             return MessageReliabilityType::Reliable( msg_uuid )
+         }
+}
+ 
+
+```
