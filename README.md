@@ -5,6 +5,12 @@ A websocket server and client framework supporting:
 * Reliable messaging (option) 
 * Broadcast-to-all, Specific-destination or Room-based destinations for messages
 
+
+### Install 
+
+cargo add degen-websockets
+
+
 ### Examples
 
 See main.rs 
