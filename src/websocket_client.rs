@@ -123,26 +123,7 @@ impl From<SocketMessageError> for WebsocketClientError {
 }
 
 impl std::error::Error for WebsocketClientError {}
- 
-/*
-pub struct ReliabilityAckSystem {
-    
-    
-    
-}
- 
- 
-impl ReliabilityAckSystem {
-    
-    pub fn new( ) -> Self {
-        
-        Self {
-            
-            
-        }
-    }
-}*/
- 
+  
  
 type SocketWriteSink = futures_util::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 type SocketReadStream = futures_util::stream::SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
@@ -263,17 +244,15 @@ impl Connection {
     
      
      
-        
-          //this should loop forever and never end 
-            //this also should not take up 100% of the thread use 
+         
           async fn start_forwarding_outbound_messages(
-           // &mut self,
+         
             write: Arc<Mutex<SocketWriteSink>>,
             mut receiver_channel: Receiver<SocketMessage>,
             
             pending_reliable_messages: Arc<RwLock<HashMap<String, SocketMessage>>>,
             socket_connection_uuid:String, 
-        ) -> std::io::Result<()>   //REQUIRED for join ! futures 
+        ) -> std::io::Result<()>     
         {
             
             println!("ws client start_forwarding_outbound_messages");
@@ -281,13 +260,7 @@ impl Connection {
                  
                  
             while let Some(socket_message) =  receiver_channel.recv().await {   //let up so other threads in the join  can run 
-              
-                   // let inner_message = outbound_message.message;
-                  //  self.send_message( socket_message ).await;
-                   // let socket_message = outbound_message.message;
-                    
-                    
-                    
+                  
                     
                     
                     
@@ -494,35 +467,13 @@ pub async fn clear_pending_reliable_message(
                         }
                     }
                 }
-                
-                //need this ? 
-        // tokio::time::sleep( Duration::from_millis(100) ).await
+               
                         
         }
     }
   
     
-     
-  /*
-    pub async fn forward_outbound_messages(
-         mut write: futures_util::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
-         mut receiver_channel: Receiver<SocketMessage>
-          ) {
-        
-           while let Some(socket_message) =  receiver_channel.recv().await { // give control back to executor
-                     
-                    let socket_message_result = socket_message.to_message();
-                    
-                    if let Ok(socket_message) = socket_message_result {                
-                        let send_msg_result = write.send( socket_message  ).await ; 
-                        if let Err(e) = send_msg_result  { 
-                            println!("Error sending message: {}", e);
-                        }       
-                    }
-               }
-        
-          }*/
-          
+      
           
           
 }
@@ -609,14 +560,7 @@ impl WebsocketClient {
         return Err(  WebsocketClientError::UnableToConnect );
     }
     
-    
-  /*   pub async fn listen(  &mut self , mut connection:   Connection,  sender_channel: Sender<InboundMessage>){
-        
-       connection.start_listening(sender_channel).await; 
-        
-        self.connection = Some(connection);
-    }
-    */
+     
     
        pub async fn listen_future(
         &mut self,
@@ -645,23 +589,7 @@ impl WebsocketClient {
                  
      }
     
-    //causes issues 
-    /*
-    pub fn listen_on_new_thread(
-        &mut self,
-         conn: Connection,
-         channel:  Sender<InboundMessage>
-         )  
-    -> Result<(),WebsocketClientError>{
-         
-         self.add_connection(  conn );
-      
-        self.connection.as_mut().unwrap().listen_on_new_thread( channel);
-     
-                
-           
-        Ok(())
-    }*/
+   
     
     pub fn add_connection( &mut self ,  connection:  Connection ){
          
@@ -669,15 +597,7 @@ impl WebsocketClient {
          
     }
     
-    /*
-    pub async fn forward_outbound_messages(&mut self, receiver_channel: Receiver<SocketMessage>){
-          match &mut self.connection {
-            Some(conn) => { conn.start_forwarding_outbound_messages(receiver_channel).await  }
-            None => {
-                println!("Could not start listening!  No connection :( ")
-            }
-        }
-    }*/
+    
     
     pub async fn get_outbound_messages_tx(&self) -> Result<Sender<SocketMessage>, WebsocketClientError> { 
         
@@ -685,51 +605,10 @@ impl WebsocketClient {
             Some(conn) => Ok ( conn.get_outbound_messages_tx().await ) ,
             None => Err(  WebsocketClientError::NoConnectionError )
         }
-       // return self.connection?.get_outbound_messages_tx()
+       
     }
     
-        
-    /*pub async fn send_socket_message (&mut self, 
-         message: SocketMessage,
-       //  destination: SocketMessageDestination
-         )
-    {        
-        match &mut self.connection {
-            Some(conn) => { 
-                    let send_result =  conn.send_socket_message(message).await;
-                 }
-            None => {
-                println!("Could not send message!  No connection :( ")
-            }
-        }
-        
-    }*/
-    
-    /*
-    pub async fn send_reliability_ack( &mut self, ack_message_uuid:String ){
-        match &mut self.connection {
-            Some(conn) => { 
-                    let send_result =  conn.send_socket_message(
-                        SocketMessage::create_reliability_ack( ack_message_uuid ) 
-                     //   ConnStatusMessage::ReliabilityAck {ack_message_uuid: ack_message_uuid.clone()},
-                      //  SocketMessageDestination::ResponseToMsg(ack_message_uuid.clone())
-                    ).await;
-                 }
-            None => {
-                println!("Could not reliability ack!  No connection :( ")
-            }
-        }
-    }*/
-    
-    /*
-    pub async send_reliable_message_ack<T: Serialize, MessageUuid, MessageReliability>(&self, message:T)
-    {
-        
-        
-        
-    }*/
- 
-
+     
     
 
 }

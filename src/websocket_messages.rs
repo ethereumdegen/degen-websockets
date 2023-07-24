@@ -317,18 +317,4 @@ impl InboundMessage {
 
 } 
 
-
-/*
-
-#[derive(Serialize,Deserialize,Clone)]
-pub enum ConnStatusMessage {
-    ReliabilityAck { ack_message_uuid:String }
-    
-}
-
-impl MessageReliability for ConnStatusMessage {
-    
-    fn is_reliable(&self) -> MessageReliabilityType {
-        MessageReliabilityType::Unreliable
-    }
-}*/
+ 
