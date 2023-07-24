@@ -12,9 +12,11 @@ use util::websocket_channel::TokioMpscChannel;
 
 use crate::websocket_messages::InboundMessage;
 use crate::websocket_client::WebsocketClient;
+use tokio::time::Duration;
 
 
-fn main() {
+#[tokio::main]
+async fn main() {
    
     let rt = tokio::runtime::Runtime::new().unwrap();
 
@@ -30,7 +32,7 @@ fn main() {
     let websocket_server_handle = rt.spawn( async move  { 
         websocket_server. start(Some(server_url_clone)).await;
 
-        loop{}
+        
     });
 
      
@@ -49,7 +51,9 @@ fn main() {
     }); 
 
 
-    let server_url_clone = server_url.clone();
+    let remote_server_url:String = "ws://localhost:8100".to_string();
+
+    
     rt.spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
                  
@@ -64,7 +68,7 @@ fn main() {
 
          
          let socket_connection_result 
-         = WebsocketClient::connect(  server_url_clone ).await;
+         = WebsocketClient::connect(  remote_server_url ).await;
          
                                       
 
@@ -87,6 +91,7 @@ fn main() {
 
     loop {
          //keep this main thread live 
+         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
  
