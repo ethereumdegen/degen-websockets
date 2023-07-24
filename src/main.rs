@@ -52,7 +52,7 @@ async fn main() {
     let mut websocket_server =  WebsocketServer::new() ;
 
     let mut websocket_server_rx = websocket_server.take_recv_channel().unwrap(); 
-    let websocket_server_tx = websocket_server.get_send_channel().clone();
+    let websocket_server_tx = websocket_server.get_send_channel().clone(); //server can send msgs with this but that doesnt happen in this example 
     
 
     let server_url_clone = server_url.clone();
