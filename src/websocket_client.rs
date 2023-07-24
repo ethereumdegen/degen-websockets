@@ -12,6 +12,7 @@
 
 
 
+use degen_logger;
 
 use futures::Future;
 /*
@@ -43,6 +44,8 @@ use tokio::net::TcpStream;
 use std::thread;
 use tokio::runtime::Runtime;
  
+
+use crate::util::logtypes::CustomLogStyle;
 
 use super::reliable_message_subsystem::ReliableMessageSubsystem;
 
@@ -220,8 +223,7 @@ impl Connection {
                  Arc::clone(&pending_reliable_messages   )                     
                 );
                  
-                    //tokio::join!(
-              
+                    
                  
                     let select = tokio::select! {
                     _ = forward_inbound_msg_future => eprintln!("forward_inbound_msg_handle finished"),
@@ -231,14 +233,11 @@ impl Connection {
                    };
                     
                     
-                    println!("WS WARN: TOKIO SELECT DROPPED");
-                   
+                    
+                   degen_logger::log(  format!("WS WARN: TOKIO SELECT DROPPED")  , CustomLogStyle::Error  ) ; 
+ 
               
                  
-                
-                 // )  ;
-                 //if stops looping then somehow notify self that we are disconnected / not listening ? 
-                
       
     }
     
@@ -255,7 +254,12 @@ impl Connection {
         ) -> std::io::Result<()>     
         {
             
-            println!("ws client start_forwarding_outbound_messages");
+              
+                  
+            degen_logger::log(  format!("ws client start_forwarding_outbound_messages")  , CustomLogStyle::Info  ) ; 
+        
+            
+            
             loop {
                  
                  
@@ -277,12 +281,14 @@ impl Connection {
                                       
                     
                     
+                
+                     degen_logger::log( format!("ws client is sending out msg: {} ", socket_message)  , CustomLogStyle::Info  ) ; 
+ 
+              
                     
                     
                     
-                    
-                    
-                          println!("ws client is sending out msg: {} ", socket_message);
+                          
                           
                     let message_result = socket_message.to_message();
                     
@@ -290,7 +296,11 @@ impl Connection {
                         let send_msg =  write.lock().await.send( message ).await ;    
                         
                         if let Err(e) = send_msg  {
-                            println!("ws client: Error sending message.. {}", e);
+                            
+                                degen_logger::log(  format!("ws client: Error sending message.. {}", e)  , CustomLogStyle::Error  ) ; 
+ 
+                            
+                           
                         }    
                      }
                      
@@ -323,7 +333,8 @@ impl Connection {
            
         tokio::join!( start_listening_future ) ;
         
-        println!("listen ending ");
+        degen_logger::log(  format!("ws client: listen loop ended")  , CustomLogStyle::Error  ) ; 
+ 
     }
     
      
@@ -403,8 +414,9 @@ pub async fn clear_pending_reliable_message(
             
               
              
-             
-             println!("ws_client client forward_inbound_messages");
+              degen_logger::log(  format!("ws_client client forward_inbound_messages")  , CustomLogStyle::Info  ) ; 
+ 
+           
                         //this await yields back to the executor so its ok to loop ! 
                 while let Some(message_result) = read.next().await {
                    
@@ -430,7 +442,10 @@ pub async fn clear_pending_reliable_message(
                                 // Send the message into the   channel
                                 sender_channel.try_send(inbound_msg.clone()) ;
                                 
-                                println!("client got socket_message {} ", socket_message);
+                                degen_logger::log(   format!("client got socket_message {} ", socket_message) , CustomLogStyle::Info  ) ; 
+ 
+                                
+                               
                                 if let MessageReliabilityType::Reliable(msg_uuid) = socket_message.reliability_type {
                                     //we need to send an ack ! 
                                     let ack_message =  SocketMessage::create_reliability_ack( msg_uuid.clone()) ;
@@ -447,7 +462,10 @@ pub async fn clear_pending_reliable_message(
                                 }
                                 
                                   if let SocketMessageDestination::AckToReliableMsg( reliable_msg_uuid ) = socket_message.destination   {
-                                   println!("client got ack - generating event ");
+                                       
+                                    degen_logger::log(   format!("client got ack") , CustomLogStyle::Info  ) ; 
+ 
+                                     
                                      ws_server_events_tx.try_send( 
                                     WebsocketSystemEvent::ReceivedMessageAck { reliable_msg_uuid }   
                                     ) ;                      
@@ -515,7 +533,11 @@ impl WebsocketClient {
         for  i in 0..9 {
             match connect_async(url.clone()).await {
                 Ok((ws_stream, _)) => {
-                    println!("WebSocket handshake has been successfully completed");
+                   
+                     degen_logger::log(   format!("WebSocket handshake has been successfully completed") , CustomLogStyle::Info  ) ; 
+ 
+                    
+                    
                     let (write, read) = ws_stream.split();
                     
                     let socket_connection_uuid =  uuid::Uuid::new_v4().to_string();

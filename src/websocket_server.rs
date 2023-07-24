@@ -1,6 +1,7 @@
  
 
  
+use degen_logger;
 use futures_util::StreamExt;
 use futures_util::stream::SplitSink;
 use futures_util::future::join_all;
@@ -30,7 +31,7 @@ use tokio::time::{interval,Duration};
 
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{util::rand::generate_random_uuid };
+use crate::{util::{rand::generate_random_uuid, logtypes::CustomLogStyle} };
  
 use super::reliable_message_subsystem::ReliableMessageSubsystem;
 
@@ -231,7 +232,9 @@ impl WebsocketServer {
         // Create the event loop and TCP listener we'll accept connections on.
         let try_socket = TcpListener::bind(&addr).await;
         let listener = try_socket.expect("Failed to bind");
-        println!("Listening on: {}", addr);
+      
+        
+        degen_logger::log(format!("Listening on: {}", addr)  , CustomLogStyle::Info  ) ; 
     
         let accept_connections = 
           Self::try_accept_new_connections(  
@@ -275,7 +278,9 @@ impl WebsocketServer {
         }
             
             
-        println!("WS WARN: TOKIO SELECT DROPPED");
+       
+        
+          degen_logger::log( format!("WS WARN: TOKIO SELECT DROPPED")  , CustomLogStyle::Error  ) ; 
     
         Ok(())
     }
@@ -397,7 +402,9 @@ async fn handle_server_events(
          
     while let Some(evt) = ws_event_rx.recv().await { //pass control abck to executor 
         
-          println!("ws server handling server event !!! ");
+         
+          
+        degen_logger::log( format!("ws server handling server event")  , CustomLogStyle::Info  ) ; 
           
         match evt {
             
@@ -450,7 +457,7 @@ pub async fn try_send_outbound_messages(
                 let clients_map = Arc::clone(&clients_map);
                 let rooms_map = Arc::clone(&rooms_map);
 
-                println!("ws_server: try send outbound message  " );
+              
 
                 Self::broadcast(clients_map, rooms_map, msg).await;
 
@@ -501,7 +508,9 @@ pub async fn broadcast(
     outbound_message: OutboundMessage
 ) -> Result<(), WebsocketServerError> {
        
-    println!("ws_server broadcasting msg: {} ", outbound_message.message  );
+   
+    
+      degen_logger::log(  format!("ws_server broadcasting msg: {} ", outbound_message.message  ) , CustomLogStyle::Info  ) ; 
 
     let socket_message = outbound_message.message;
          
@@ -544,7 +553,10 @@ pub async fn broadcast_to_connections
 
     for result in results {
         if let Err(err) = result {
-            eprintln!("Failed to send a message: {}", err);
+           
+            
+                degen_logger::log(   format!("Failed to send a message: {}", err) , CustomLogStyle::Error  ) ; 
+            
             
             return Err(WebsocketServerError::SendMessageError);
         }
@@ -605,7 +617,11 @@ async fn accept_connection(
         .await
         .expect("Error during the websocket handshake occurred");
 
-    println!("New WebSocket connection: {}", addr);
+    
+    
+        degen_logger::log(  format!("New WebSocket connection: {}", addr)  , CustomLogStyle::Info  ) ; 
+            
+            
 
     let (   client_tx, mut client_rx) = ws_stream.split();   //this is how i can read and write to this client 
     
@@ -644,7 +660,9 @@ async fn accept_connection(
                       if let MessageReliabilityType::Reliable( msg_uuid ) =  socket_message.reliability_type {
                         let ack_message =  SocketMessage::create_reliability_ack( msg_uuid ) ;
  
-                                println!("server learned of reliable msg! ");
+                                
+    
+                                 degen_logger::log(  format!("server learned of reliable msg")  , CustomLogStyle::Info  ) ; 
  
                         
                               let send_ack_result =  outbound_messages_tx.try_send (
@@ -655,7 +673,7 @@ async fn accept_connection(
                                     );
                                     
                         match send_ack_result {
-                             Ok( .. ) => {println!("Server sent ack {}", ack_message)},
+                             Ok( .. ) => {    degen_logger::log(  format!("Server sent ack {}", ack_message)  , CustomLogStyle::Info  )   },
                              Err(e) => println!("{}",e)
                          }     
                       }
@@ -666,7 +684,7 @@ async fn accept_connection(
                           );    
                           
                          match handle_ack_result {
-                             Ok( .. ) => {println!("Server handling ack")},
+                             Ok( .. ) => {  degen_logger::log(  format!("Server handling ack")  , CustomLogStyle::Info  )     },
                              Err(e) => println!("{}",e)
                          }                  
                           
