@@ -8,6 +8,8 @@ use uuid;
 
 use thiserror::Error;
 
+use crate::udp_layer::UdpMessage;
+
  
 
 //move this to shared?
@@ -124,8 +126,8 @@ impl SocketMessage {
     }
     
     
-    pub fn from_message(msg: Message) -> Result<Self, SocketMessageError> {
-        match msg {
+    pub fn from_message(msg: UdpMessage) -> Result<Self, SocketMessageError> {
+        /*match msg {
             Message::Text(inner) => {
                 let value = serde_json::from_str(&inner).map_err(SocketMessageError::SerializationError)?;
                 Self::from_stringified(value)
@@ -136,14 +138,18 @@ impl SocketMessage {
                 Self::from_stringified(value)
             },
             _ => Err(SocketMessageError::ParseFromUnknownMessageError),
-        }
+        }*/
+        
+        let inner_message = serde_json::from_str( msg.message.as_str()) .map_err(SocketMessageError::SerializationError)?;
+        
+        return Ok( Self::from_stringified( inner_message )? );
     }
     
-    pub fn to_message(&self) -> Result<Message, SocketMessageError > {
+    pub fn to_message(&self) -> Result<UdpMessage, SocketMessageError > {
         
         let inner = serde_json::to_string( self ).map_err(SocketMessageError::SerializationError)?;
         
-        Ok(Message::Text(inner.to_string()))        
+        Ok(UdpMessage{ message:inner.clone()  })        
     }
     
     pub fn is_reliable(&self) -> bool {
@@ -253,7 +259,7 @@ pub struct InboundMessage {
 
 impl InboundMessage {
 
-    pub fn from_message(socket_connection_uuid:String, msg:Message) -> Result<Self,SocketMessageError> {
+    pub fn from_message(socket_connection_uuid:String, msg:UdpMessage) -> Result<Self,SocketMessageError> {
 
 
         let message = SocketMessage::from_message(msg)?;  //text( msg.clone().into_text().unwrap() ) ;

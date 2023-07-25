@@ -7,13 +7,15 @@ use futures_util::stream::SplitSink;
 use futures_util::future::join_all;
  
  
-use tokio_tungstenite::WebSocketStream;
+ //use tokio_tungstenite::WebSocketStream;
+ //use tokio_tungstenite::tungstenite::Message;
  
 use serde::Serialize;
 use serde_json;
 
  
-use tokio::net::{TcpListener, TcpStream};
+//use tokio::net::{TcpListener, TcpStream};
+
 
 
 use futures::SinkExt; 
@@ -29,9 +31,9 @@ use std::collections::HashSet;
  
 use tokio::time::{interval,Duration};
 
-use tokio_tungstenite::tungstenite::Message;
 
-use crate::{util::{rand::generate_random_uuid, logtypes::CustomLogStyle} };
+
+use crate::{util::{rand::generate_random_uuid, logtypes::CustomLogStyle}, udp_layer::{UdpMessage, UdpListener} };
  
 use super::reliable_message_subsystem::ReliableMessageSubsystem;
 
@@ -58,10 +60,10 @@ type ClientsMap = Arc<RwLock<HashMap<String, ClientConnection>>>;
 type RoomsMap = Arc<RwLock<HashMap<String, HashSet<String>>>>;
  
 
-type TxSink = Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>;
+//type TxSink = Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, UdpMessage>>>;
 
 
-type RxSink = Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>;
+//type RxSink = Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, UdpMessage>>>;
 
  
 
@@ -111,11 +113,12 @@ impl From<serde_json::Error> for WebsocketServerError {
     }
 }
  
+ /*
 impl From<tokio_tungstenite::tungstenite::Error> for WebsocketServerError {
       fn from(err: tokio_tungstenite::tungstenite::Error) -> Self {
         WebsocketServerError::TokioError(format!("Tokio error: {}", err))
     }
-}
+}*/
 
 impl From<SocketMessageError> for WebsocketServerError {
      fn from(err: SocketMessageError) -> Self {
@@ -139,7 +142,7 @@ pub struct ClientConnection {
 
 impl ClientConnection {
 
-    pub fn new( addr:String, client_tx: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message> ) -> Self{
+    pub fn new( addr:String, client_tx: SplitSink<WebSocketStream<tokio::net::TcpStream>, UdpMessage> ) -> Self{
 
         Self {  
             client_socket_uuid: generate_random_uuid(),
@@ -150,7 +153,7 @@ impl ClientConnection {
 
     }
 
-    pub async fn send_message(&self, msg: Message) -> Result<(), tokio_tungstenite::tungstenite::error::Error> {
+    pub async fn send_message(&self, msg: UdpMessage) -> Result<(), tokio_tungstenite::tungstenite::error::Error> {
         self.tx_sink.lock().await.send(msg).await
     } 
 
@@ -230,7 +233,13 @@ impl WebsocketServer {
         
         let addr: String = url.unwrap_or_else(|| "127.0.0.1:8080".to_string());
         // Create the event loop and TCP listener we'll accept connections on.
-        let try_socket = TcpListener::bind(&addr).await;
+        
+        
+        let try_socket = UdpListener::bind(&addr).await; 
+        
+        
+        
+       // let try_socket = TcpListener::bind(&addr).await;
         let listener = try_socket.expect("Failed to bind");
       
         
@@ -569,7 +578,7 @@ pub async fn broadcast_to_connections
 
 pub async fn try_accept_new_connections(
     clients_map: ClientsMap, 
-    listener: TcpListener, 
+    listener: UdpListener, 
     global_recv_tx: Sender<InboundMessage>, //so we can tell outer process about what we recv'd
     
     global_send_tx: Sender<OutboundMessage>, //so we can send ACK packets if got reliable 
@@ -608,6 +617,10 @@ async fn accept_connection(
      ws_server_events_tx: Sender<WebsocketSystemEvent>
     ) {
 
+    
+    
+    //convert this to a udp stream !! 
+    
     let addr = raw_stream
         .peer_addr()
         .expect("connected streams should have a peer address")
